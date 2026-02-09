@@ -2,11 +2,23 @@ import asyncio
 
 from streifenstecker.communication.serialConnection import MessboxConnectionHandler
 from streifenstecker.communication.modbusCommunication import ModbusConnectionHandler
-
+from streifenstecker.logging.mortielogger import MortieLogger
 
 #serConn = MessboxConnectionHandler()
 #conf_path =  os.path.join(os.path.join(os.path.dirname(__file__), "..", ".."), "config", "serial_config.yaml")
 #config = yaml.safe_load(open(conf_path))
+
+sps = ModbusConnectionHandler(
+    logger=MortieLogger(name="SPS_Connection"),
+)
+messboxen = MessboxConnectionHandler(
+    logger=MortieLogger(name="Messboxen_Connection"),
+)
+async def open_connections():
+
+    await sps.connect()
+
+
 
 async def mainloop():
 
@@ -14,13 +26,8 @@ async def mainloop():
     #stick_probes()
     #get_measurements()
     #remove_probes()
-    modbusclient = ModbusConnectionHandler()
-    await modbusclient.connect()
-    response = await modbusclient.client.read_coils(address=3001,count=1)
-    response = await modbusclient.write_coil(
-        address=101,
-        value=True)
-    return response
+
+
 
 
 if __name__ == "__main__":
