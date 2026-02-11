@@ -1,4 +1,6 @@
 import asyncio
+import time
+from pymodbus.client import AsyncModbusTcpClient as ModbusClient
 
 from streifenstecker.communication.serialConnection import MessboxConnectionHandler
 from streifenstecker.communication.modbusCommunication import ModbusConnectionHandler
@@ -9,10 +11,11 @@ from streifenstecker.logging.mortielogger import MortieLogger
 #config = yaml.safe_load(open(conf_path))
 
 sps = ModbusConnectionHandler(
-    logger=MortieLogger(name="SPS_Connection"),
+    logger=MortieLogger(name="SPS_Connection",tofile=True),
 )
 messboxen = MessboxConnectionHandler(
-    logger=MortieLogger(name="Messboxen_Connection"),
+    ports=["COM3","COM4"],
+    logger=MortieLogger(name="Messboxen_Connection",tofile=True),
 )
 async def open_connections():
 
@@ -26,7 +29,7 @@ async def mainloop():
     #stick_probes()
     #get_measurements()
     #remove_probes()
-
+    pass
 
 
 

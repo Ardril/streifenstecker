@@ -21,14 +21,18 @@ coil_addresses ={
 class ModbusConnectionHandler:
 
     client:ModbusClient
-    def __init__(self,host=None,port=5020,logger):
+    def __init__(self,logger,host=None,port=5020):
         self.logger = logger
+        self.host = "127.0.0.1" if not host else host
+        self.port = port
+
+    async def connect(self):
         self.client = ModbusClient(
-            host="127.0.0.1" if host is None else host,
-            port=port,
+            host=self.host,
+            port=self.port,
             timeout=10,
         )
-    async def connect(self):
+
         await self.client.connect()
 
     async def disconnect(self):
