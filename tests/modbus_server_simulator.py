@@ -26,6 +26,16 @@ import time
 #
 #
 
+import sys
+import os
+sys.path.append("C:\\Users\\niklas.klemens\\PycharmProjects\\streifenstecker\\src")
+
+from streifenstecker.logging.mortielogger import MortieLogger
+test_logger = MortieLogger(name="Server_Sim")
+
+
+remaining_foil_steps = 10
+
 class CallbackModbusSequentialDataBlock(ModbusSequentialDataBlock):
     """
     A custom overload of the ModbusSequentialDataBlock to allow for callback functions to be executed when values change within the datablock
@@ -36,7 +46,7 @@ class CallbackModbusSequentialDataBlock(ModbusSequentialDataBlock):
 
     def setValues(self, address, values):
         super().setValues(address, values)
-        print(f"Change at {address} with values {values}")
+        test_logger.info(f"Change at {address} with values {values}")
         self.callback(self,address, values)
 
 def on_change(datablock:CallbackModbusSequentialDataBlock,address, values):
@@ -45,28 +55,34 @@ def on_change(datablock:CallbackModbusSequentialDataBlock,address, values):
     if address == 101 and values[0]:
         # Folie_Request; Set Folie Ready to False
         datablock.setValues(3002,[0])
-        print("Moving foil")
+        test_logger.info("Advancing foil")
+        global remaining_foil_steps
+        remaining_foil_steps = remaining_foil_steps - 1
+        test_logger.info(f"{remaining_foil_steps} foil steps remain")
+        if remaining_foil_steps <= 0:
+            test_logger.info("Foil end reached")
+            datablock.setValues(3,[1])
         # Wait 5 sec to simulate foil movement; Set Ready to True
         time.sleep(5)
-        print("Foil ready")
+        test_logger.info("Foil ready")
         datablock.setValues(3002,[1])
 
     elif address == 201 and values[0]:
         # Steck_Request; Set Steck Ready to False
         datablock.setValues(2001,[0])
-        print("Moving probes")
+        test_logger.info("Moving probes")
         # Wait 3 sec to simulate stecker movement; Set Ready to True
         time.sleep(3)
-        print("Probes connected")
+        test_logger.info("Probes connected")
         datablock.setValues(2001,[1])
 
     elif address == 301 and values[0]:
         # Steck_Loesungs_Request
         datablock.setValues(2001,[0])
-        print("Moving probes")
+        test_logger.info("Moving probes")
         # Wait 3 sec to simulate stecker movement; Set Ready to True
         time.sleep(3)
-        print("Probes disconnected")
+        test_logger.info("Probes disconnected")
         datablock.setValues(2001,[1])
     
     return
@@ -79,29 +95,34 @@ class ModbusServerSimulator:
         
         args = Namespace(host="127.0.0.1",port=502,framer="socket")
 
-        callback_datablock = lambda : CallbackModbusSequentialDataBlock(0x00, [17] * 100, on_change)  
-                
+        #callback_datablock = lambda : CallbackModbusSequentialDataBlock(0x00, [17] * 4000, on_change)
+
+        disc_in= lambda : CallbackModbusSequentialDataBlock(0x00, [17] * 100, on_change)
+        cols=    lambda : CallbackModbusSequentialDataBlock(0x00, [17] * 100, on_change)
+        hol_reg= lambda : CallbackModbusSequentialDataBlock(0x00, [17] * 100, on_change)
+        inp_reg= lambda : CallbackModbusSequentialDataBlock(0x00, [17] * 100, on_change)
+
         context = ModbusDeviceContext(
-                    di=callback_datablock(), 
-                    co=callback_datablock(), 
-                    hr=callback_datablock(), 
-                    ir=callback_datablock()
+                    di=disc_in(),
+                    co=cols(),
+                    hr=hol_reg(),
+                    ir=inp_reg()
                 )
         
         ## Set ready and alive coils to true
 
 
 
-        context.setValues(1,1001,[1])   # Folie_Ready
-        context.setValues(1,1002,[0])   # Folie_Error
-        context.setValues(1,1003,[0])   # Folie_Ende
+        context.setValues(1,1,[1])   # Folie_Ready
+        context.setValues(1,2,[0])   # Folie_Error
+        context.setValues(1,3,[0])   # Folie_Ende
 
-        context.setValues(1,2001,[1])   # Steck_Ready
-        context.setValues(1,2002,[0])   # Steck_Error
+        context.setValues(1,10,[1])   # Steck_Ready
+        context.setValues(1,11,[0])   # Steck_Error
 
-        context.setValues(1,3001,[1])   # Förderer_Alive
-        context.setValues(1,3002,[1])   # Förderer_Ready
-        context.setValues(1,3003,[1])   # Stecker_Ready
+        context.setValues(4,20,[1])   # Förderer_Alive
+        context.setValues(4,21,[1])   # Förderer_Ready
+        context.setValues(4,22,[1])   # Stecker_Ready
 
         single = True
 

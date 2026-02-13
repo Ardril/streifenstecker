@@ -7,14 +7,14 @@ class MortieLogger(logging.Logger):
     def __init__(self, name="Mortie2", tofile=False):
         super().__init__(name)
         date_time_tuple = datetime.datetime.now().isoformat(timespec='seconds').replace("-", "_").replace(":", "_").split("T")
-        if not os.path.exists(f"./logs/{date_time_tuple[0]}"):
+        if tofile and not os.path.exists(f"./logs/{date_time_tuple[0]}"):
             os.makedirs(f"./logs/{date_time_tuple[0]}")
 
         log_to_console = logging.StreamHandler()
         log_to_console.setLevel("INFO")
         self.addHandler(log_to_console)
         log_to_console.setFormatter(logging.Formatter(
-                "{asctime} - {levelname} - {filename} -{funcName} - {message}",
+                "{asctime} - {levelname} - {funcName} - {message}",
                 style="{",
                 datefmt="%Y-%m-%d %H:%M",
         ))
@@ -29,7 +29,7 @@ class MortieLogger(logging.Logger):
             log_to_logfile = logging.FileHandler(filepath, encoding="utf-8-sig")
             log_to_logfile.setLevel("DEBUG")
             log_to_logfile.setFormatter(logging.Formatter(
-                "{asctime} - {levelname} - {filename} -{funcName} - {message}",
+                "{asctime} - {levelname} - {funcName} - {message}",
                 style="{",
                 datefmt="%Y-%m-%d %H:%M",
             ))
