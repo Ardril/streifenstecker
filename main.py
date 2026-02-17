@@ -6,6 +6,15 @@ from streifenstecker.communication.serialConnection import MessboxConnectionHand
 from streifenstecker.communication.modbusCommunication import ModbusConnectionHandler
 from streifenstecker.logging.mortielogger import MortieLogger
 
+
+log_entry = {
+    "timestamp":0,
+    "box1":{},
+    "box2":{}
+}
+
+
+
 app = SteckerApp()
 
 sps = ModbusConnectionHandler(
@@ -24,6 +33,36 @@ async def open_connections():
     await sps.connect()
 
 
+async def meas_by_type(meas_type:str,times):
+
+    if not sps.client.connected:
+        raise AttributeError("SPS is not connected!")
+
+    match meas_type:
+
+        case "n":   #normal
+            await sps.advance_foil()
+            await sps.connect_probes()
+            mb1.get_measurements()
+            mb2.get_measurements()
+            await sps.disconnect_probes()
+
+        case "r":   #repeat
+            if not times > 0:
+                raise AttributeError("The number of repeats can't be 0 when using 'repeat' measurement type")
+
+            for i in range(times):
+                await sps.advance_foil()
+                await sps.connect_probes()
+                mb1.get_measurements()
+                mb2.get_measurements()
+                await sps.disconnect_probes()
+
+        case "s":   #short to ground
+
+            await sps.disconnect_probes()
+            mb1.get_measurements()
+            mb2.get_measurements()
 
 async def mainloop(logger):
 
@@ -40,7 +79,11 @@ async def mainloop(logger):
             elif ret == 0:
                 logger.warning("Foil is empty")
                 app.update_state_display("FoilEmpty")
-                time.sleep(3)
+                app.request_foil_change()
+                while not app.get_foil_state():
+                    time.sleep(0.5)
+
+
         if await sps.connect_probes() > 0:
             measurements = mb1.get_measurements()
             app.update_measurement_fields(measurements)
@@ -49,7 +92,7 @@ async def mainloop(logger):
     #stick_probes()
     #get_measurements()
     #remove_probes()
-    pass
+
 
 def sim_util():
     from tests import modbus_server_simulator
@@ -72,5 +115,6 @@ if __name__ == "__main__":
 
 
     app.mainloop()
+    print("APP CLOSED")
     core_thread.join()
     sim_thread.join()

@@ -17,18 +17,34 @@ class MessboxConnectionHandler():
     def __del__(self):
         self.serCon1.close()
 
+    def is_open(self):
+        return self.serCon1.is_open
+
     def open_connection(self):
-        self.serCon1.open()
+        try:
+            self.serCon1.open()
+            self.serCon1.write(b"a")
+            #todo Remove this
+            if ".ino" not in str(self.serCon1.readline()):
+                self.logger.debug(f"Port {self.serCon1.port} opened, but the device is not a messbox")
+                return -1
+            self.serCon1.reset_input_buffer()
+            self.serCon1.reset_output_buffer()
+            self.logger.debug(f"Port {self.serCon1.port} opened")
+            return 1
+        except serial.SerialException as e:
+            raise e
         
              
     def get_measurements(self):
         if not self.serCon1.is_open:
             return -1
-        self.logger.info("Measuring")
+        self.logger.debug("Measuring resistance...")
         self.serCon1.write(b"t")
         time.sleep(0.2)
         response = str(self.serCon1.readline()).replace("b","").replace("'","")
-        self.logger.info(f"Got {len(response.split("  "))-1} values")
+        self.logger.debug(f"Got {len(response.split("  "))-1} values")
+        self.logger.debug(response)
         # b'1207.20 1216.12 1226.48 330.91
         # 1206.95 1216.12 1226.42 330.93
         # 1206.64 1215.99 1226.38 330.99

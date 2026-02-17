@@ -45,15 +45,16 @@ class ModbusConnectionHandler:
         return await self.client.write_coil(address=address-1, value=value)
 
     async def advance_foil(self):
+        self.logger.debug("Advancing Foil")
         await self.write_coil(address=coil_addresses["Folie_Request"],value=1)
         start_time = time.time()
         while time.time() - start_time < 5:
             foil_state = await self.read_coils(address=coil_addresses["Folie_Error"], count=2)
             if foil_state.bits[0]:
-                # Foile Empty
+                # Folie Empty
                 return 0
             elif foil_state.bits[1] :
-                # Foile Empty
+                # Folie Empty
                 return 10
             response = await self.read_coils(address=coil_addresses["Folie_Ready"],count=1)
             if response.bits[0]:
@@ -63,6 +64,7 @@ class ModbusConnectionHandler:
         return -1
 
     async def connect_probes(self):
+        self.logger.debug("Connecting Probes")
         await self.write_coil(address=coil_addresses["Steck_Request"], value=1)
         start_time = time.time()
         while time.time() - start_time < 5:
@@ -73,6 +75,7 @@ class ModbusConnectionHandler:
         return -1
 
     async def disconnect_probes(self):
+        self.logger.debug("Disconnecting Probes")
         await self.write_coil(address=coil_addresses["Steck_Disconnect_Request"], value=1)
         start_time = time.time()
         while time.time() - start_time < 5:

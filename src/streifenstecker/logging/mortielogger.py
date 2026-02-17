@@ -34,4 +34,4 @@ class MortieLogger(logging.Logger):
                 datefmt="%Y-%m-%d %H:%M",
             ))
             self.addHandler(log_to_logfile)
-            self.warning("Hello")
+            self.warning("Logger DBG: Hello")

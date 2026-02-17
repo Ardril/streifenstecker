@@ -46,7 +46,7 @@ class CallbackModbusSequentialDataBlock(ModbusSequentialDataBlock):
 
     def setValues(self, address, values):
         super().setValues(address, values)
-        test_logger.info(f"Change at {address} with values {values}")
+        #test_logger.info(f"Change at {address} with values {values}")
         self.callback(self,address, values)
 
 def on_change(datablock:CallbackModbusSequentialDataBlock,address, values):
