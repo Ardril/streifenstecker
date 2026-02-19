@@ -34,7 +34,7 @@ from streifenstecker.logging.mortielogger import MortieLogger
 test_logger = MortieLogger(name="Server_Sim")
 
 
-remaining_foil_steps = 10
+remaining_foil_steps = 100
 
 class CallbackModbusSequentialDataBlock(ModbusSequentialDataBlock):
     """

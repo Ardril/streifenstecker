@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import threading
+import time
 from streifenstecker.communication.serialConnection import MessboxConnectionHandler
 from streifenstecker.communication.modbusCommunication import ModbusConnectionHandler
 from streifenstecker.logging.mortielogger import MortieLogger
@@ -16,6 +17,10 @@ def util_convert_list(m_list):
             complete_list.append(value)
     return complete_list
 
+class FoilAdvanceException(Exception):
+    def __init__(self,message):
+        super().__init__(message)
+        pass
 
 class WorkflowManager:
 
@@ -114,28 +119,37 @@ class WorkflowManager:
         meas1 = 0
         meas2 = 0
 
-        match meas_type:
+        if meas_type == "n":
 
-            case "n":  # normal
+              # normal
                 ret = await self.sps.advance_foil()
+                if ret == 1:
+                    await self.sps.connect_probes()
+                    self.get_contact_measurements("n")
+                    await self.sps.disconnect_probes()
+                    self.cycle_n += 1
+                elif ret == 10:
+                    self.ui.logger.error("An error occurred while advancing the foil")
+                    raise FoilAdvanceException(message="An error occurred while advancing the foil")
 
-                await self.sps.connect_probes()
-                self.get_contact_measurements("n")
-                await self.sps.disconnect_probes()
-                self.cycle_n += 1
+                elif ret == 0:
+                    self.ui.request_foil_change()
+                    while not self.ui.get_foil_state():
+                        time.sleep(0.5)
 
-            case "r":  # repeat
+        elif meas_type == "r":  # repeat
+
                 if not times > 0:
                     raise AttributeError("The number of repeats can't be 0 when using 'repeat' measurement type")
 
                 for i in range(times):
+                    self.logger.info(f"Repeat measurement {i+1} of {times}")
                     await self.sps.connect_probes()
                     self.get_contact_measurements("r")
                     await self.sps.disconnect_probes()
                     self.cycle_n += 1
 
-            case "s":  # short to ground
-
+        elif meas_type == "s":  # short to ground
                 await self.sps.disconnect_probes()
                 self.get_contact_measurements("s")
                 self.cycle_n += 1
@@ -145,24 +159,28 @@ class WorkflowManager:
 
     async def mainloop(self):
         if await self.open_connections() == 0:
+            m_type = "n"
             while self.active:
 
                 if self.cycle_n % self.measurements_before_repeat == 0:
                     # Trigger repeat
                     self.logger.info(f"Performing {self.repeat_per_repeat_measurement} repeat measurements")
+                    self.ui.update_state_display("Wiederholungsmessung")
                     m_type = "r"
 
                 elif self.cycle_n % self.short_measurement_after_x == 0:
                     # Trigger short_to_ground
                     self.logger.info("Performing short_to_ground measurement")
+                    self.ui.update_state_display("Kurzschlussmessung")
                     m_type = "s"
 
                 else:
                     # Trigger normal
                     self.logger.info("Performing normal measurement")
+                    self.ui.update_state_display("Normalmessung")
                     m_type = "n"
 
-                await self.meas_by_type("n",self.repeat_per_repeat_measurement)
+                await self.meas_by_type(m_type,self.repeat_per_repeat_measurement)
 
 
 

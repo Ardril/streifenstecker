@@ -12,9 +12,12 @@ class SteckerApp(ctk.CTk):
 
     state_color = {
         "Ready":    "#93FF8A",
-        "Working":  "#FBFF8A",
+        "Working":  "#F5F505",
         "Error":    "#FF0000",
         "FoilEmpty":"#8E8AFF",
+        "Normalmessung":"#81F505",
+        "Wiederholungsmessung":"#0581F5",
+        "Kurzschlussmessung":"#F50581"
     }
 
     def __init__(self):
@@ -37,7 +40,7 @@ class SteckerApp(ctk.CTk):
         # --- --- ---  --- --- ---  --- --- ---  --- --- --- --- --- ---  --- --- ---  --- --- ---  --- --- ---
 
         self.targetCycles = ctk.IntVar(value=600)
-        self.currentCycles = ctk.IntVar(value=0)
+        self.currentCycles = ctk.IntVar(value=1)
 
         self.targetCyclesFrame = ctk.CTkFrame(self)
         self.targetCyclesField = ctk.CTkLabel( self.targetCyclesFrame, textvariable=self.targetCycles)
@@ -89,6 +92,7 @@ class SteckerApp(ctk.CTk):
 
         self.stateLabel.grid(row=13, column=1, pady=5, padx=20, sticky="ew")
         self.stateField.grid(row=14, column=1, pady=5, padx=20, sticky="ew")
+        self.update_cycle_count("Ready")
 
 
 
@@ -98,14 +102,17 @@ class SteckerApp(ctk.CTk):
         self.mTime.set(measurements1["time"])
 
     def update_state_display(self,state):
+        print(f"State = {state}")
         if state not in self.state_color.keys():
             return -1
         color = self.state_color[state]
         self.stateField.configure(bg_color=color)
         self.sys_state.set(state)
+        print(f"State set to {state}")
         return 1
 
     def get_foil_state(self):
+        # Nur für die Simulation
         return self.foil_state
 
     def update_cycle_count(self,value):
