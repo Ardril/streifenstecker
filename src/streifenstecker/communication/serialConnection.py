@@ -1,15 +1,15 @@
 import time
 from argparse import ArgumentError
 import serial
-
-
+from serial.tools.list_ports import comports
 
 
 class MessboxConnectionHandler():
 
     
     def __init__(self,port,logger):
-
+        for prt in comports():
+            print(prt.device)
         self.serCon1 = serial.Serial()
         self.logger = logger
         self.serCon1.port = port

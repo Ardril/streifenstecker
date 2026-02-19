@@ -24,20 +24,20 @@ class WorkflowManager:
     mb2:MessboxConnectionHandler
     logger:MortieLogger
     ui:SteckerApp
+    database:DatabaseConnection
 
     def __init__(self,mess_before_repeat,repeat_count,stg_after_x, ui=False):
         self.logger = MortieLogger("WorkFlowManager",True)
-        self.database = DatabaseConnection()
         # --- --- --- --- --- --- --- --- --- --- ---
         self.sps = ModbusConnectionHandler(
             logger=MortieLogger(name="SPS_Connection", tofile=True),
         )
         self.mb1 = MessboxConnectionHandler(
-            port="COM4",
+            port="COM3",
             logger=MortieLogger(name="MB_Connection1", tofile=True),
         )
         self.mb2 = MessboxConnectionHandler(
-            port="COM3",
+            port="COM7",
             logger=MortieLogger(name="MB_Connection2", tofile=True),
         )
         if ui:
@@ -47,6 +47,10 @@ class WorkflowManager:
         self.repeat_per_repeat_measurement = repeat_count
         self.short_measurement_after_x = stg_after_x
         self.cycle_n = 1
+        self.active = True
+
+    def initialize_database(self):
+        self.database = DatabaseConnection()
 
     async def open_connections(self):
 
@@ -66,7 +70,7 @@ class WorkflowManager:
         await self.sps.connect()
         return 0
 
-    def log_data_to_db(self,measurement1,measurement2):
+    def log_data_to_db(self,measurement1,measurement2,m_type):
         list1 = util_convert_list(measurement1)
         list2 = util_convert_list(measurement2)
         ts = "|".join(datetime.datetime.now()
@@ -79,19 +83,20 @@ class WorkflowManager:
             "timestamp":ts,
             "box1": str(list1),
             "box2": str(list2),
+            "type": m_type
         }
         print(record)
-        #self.database.insert_record(record)
+        self.database.insert_record(record)
         return
 
-    def get_contact_measurements(self):
+    def get_contact_measurements(self,m_type):
         meas1 = self.mb1.get_measurements()
         meas2 = self.mb2.get_measurements()
         self.ui.update_measurement_fields(
             measurements1=meas1,
             measurements2=meas2,
         )
-        self.log_data_to_db(meas1,meas2)
+        self.log_data_to_db(meas1,meas2,m_type)
 
     async def meas_by_type(self,meas_type: str, times=0):
 
@@ -115,7 +120,7 @@ class WorkflowManager:
                 ret = await self.sps.advance_foil()
 
                 await self.sps.connect_probes()
-                self.get_contact_measurements()
+                self.get_contact_measurements("n")
                 await self.sps.disconnect_probes()
                 self.cycle_n += 1
 
@@ -125,14 +130,14 @@ class WorkflowManager:
 
                 for i in range(times):
                     await self.sps.connect_probes()
-                    self.get_contact_measurements()
+                    self.get_contact_measurements("r")
                     await self.sps.disconnect_probes()
                     self.cycle_n += 1
 
             case "s":  # short to ground
 
                 await self.sps.disconnect_probes()
-                self.get_contact_measurements()
+                self.get_contact_measurements("s")
                 self.cycle_n += 1
 
         #print(self.cycle_n)
@@ -140,7 +145,8 @@ class WorkflowManager:
 
     async def mainloop(self):
         if await self.open_connections() == 0:
-            while True:
+            while self.active:
+
                 if self.cycle_n % self.measurements_before_repeat == 0:
                     # Trigger repeat
                     self.logger.info(f"Performing {self.repeat_per_repeat_measurement} repeat measurements")
@@ -167,8 +173,9 @@ if __name__ == "__main__":
         modbus_sim = modbus_server_simulator.ModbusServerSimulator()
         asyncio.run(modbus_sim.async_helper(), debug=False)
 
-    sim_thread = threading.Thread(target=sim_util)
+    sim_thread = threading.Thread(target=sim_util, daemon=True)
     sim_thread.start()
+
     wfm = WorkflowManager(
         mess_before_repeat=7,
         repeat_count=3,
@@ -176,10 +183,14 @@ if __name__ == "__main__":
         ui = True
     )
     def run_manager():
+        wfm.initialize_database()
         asyncio.run(wfm.mainloop())
 
 
     core_thread = threading.Thread(target=run_manager)
     core_thread.start()
 
+    print("Running")
     wfm.ui.mainloop()
+    wfm.active = False
+    core_thread.join()
